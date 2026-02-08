@@ -10,9 +10,6 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/docxtemplater/3.42.3/docxtemplater.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pizzip/3.1.4/pizzip.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
     <style>
         .gradient-bg {
             background: linear-gradient(135deg, #dc2626 0%, #7f1d1d 100%);
@@ -674,7 +671,7 @@
             document.getElementById('nextPageFull').disabled = end >= total;
         }
 
-        // Export Functions
+        // Export to Excel
         function exportToExcel(data, filename, includeAnalysis = false) {
             const ws_data = [];
             
@@ -731,6 +728,7 @@
             XLSX.writeFile(wb, filename);
         }
 
+        // Export to PDF
         function exportToPDF(data, filename, includeAnalysis = false) {
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF('l', 'mm', 'a4');
@@ -776,6 +774,122 @@
             });
             
             doc.save(filename);
+        }
+
+        // Export to Word (NEW FIXED FUNCTION)
+        function exportToWord(data, filename, includeAnalysis = false) {
+            // Create HTML content for Word document
+            let htmlContent = `
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <meta charset="UTF-8">
+                    <title>${filename}</title>
+                    <style>
+                        body { font-family: Arial, sans-serif; margin: 40px; }
+                        h1 { color: #dc2626; border-bottom: 2px solid #dc2626; padding-bottom: 10px; }
+                        table { border-collapse: collapse; width: 100%; margin-top: 20px; }
+                        th { background-color: #dc2626; color: white; padding: 10px; text-align: left; }
+                        td { border: 1px solid #ddd; padding: 8px; }
+                        tr:nth-child(even) { background-color: #f9f9f9; }
+                        .tag { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 12px; margin-right: 4px; }
+                        .sentiment-Splus { background-color: #d1fae5; color: #065f46; }
+                        .sentiment-Sminus { background-color: #fee2e2; color: #991b1b; }
+                        .sentiment-S0 { background-color: #e5e7eb; color: #374151; }
+                        .sentiment-SL { background-color: #dbeafe; color: #1e40af; }
+                        .sentiment-SS { background-color: #f3e8ff; color: #7c3aed; }
+                    </style>
+                </head>
+                <body>
+                    <h1>${includeAnalysis ? 'Analisis Komentar Instagram - Manchester United' : 'Data Lengkap Komentar - Manchester United'}</h1>
+                    <p>Dibuat pada: ${new Date().toLocaleString('id-ID')}</p>
+                    <p>Jumlah data: ${data.length}</p>
+            `;
+
+            if (includeAnalysis) {
+                htmlContent += `
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>No</th>
+                                <th>Username</th>
+                                <th>Komentar</th>
+                                <th>Level 1 Individual</th>
+                                <th>Level 2 Interpersonal</th>
+                                <th>Level 3 Kelompok</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                `;
+
+                data.forEach((item, index) => {
+                    const ritualCodes = item.rituals.map(r => r.code).filter(c => c).join(', ') || '-';
+                    htmlContent += `
+                        <tr>
+                            <td>${index + 1}</td>
+                            <td>${item.username}</td>
+                            <td>${item.text}</td>
+                            <td><span class="tag sentiment-${item.sentiment.code.replace('+', 'plus').replace('-', 'minus')}">${item.sentiment.code}</span> ${item.sentiment.category}</td>
+                            <td>${item.interaction.code ? item.interaction.code + ' - ' + item.interaction.category : '-'}</td>
+                            <td>${ritualCodes}</td>
+                        </tr>
+                    `;
+                });
+
+                htmlContent += `
+                        </tbody>
+                    </table>
+                `;
+            } else {
+                htmlContent += `
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>No</th>
+                                <th>Username</th>
+                                <th>Komentar</th>
+                                <th>Waktu</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                `;
+
+                data.forEach((item, index) => {
+                    const timestamp = new Date(parseInt(item.created_at) * 1000).toLocaleString('id-ID');
+                    htmlContent += `
+                        <tr>
+                            <td>${index + 1}</td>
+                            <td>${item.username}</td>
+                            <td>${item.text}</td>
+                            <td>${timestamp}</td>
+                        </tr>
+                    `;
+                });
+
+                htmlContent += `
+                        </tbody>
+                    </table>
+                `;
+            }
+
+            htmlContent += `
+                </body>
+                </html>
+            `;
+
+            // Create Blob and download
+            const blob = new Blob(['\ufeff', htmlContent], {
+                type: 'application/msword'
+            });
+            
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = filename.replace('.docx', '.doc') || 'document.doc';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
         }
 
         // Event Listeners
@@ -862,7 +976,7 @@
             renderFullDataTable();
         });
 
-        // Export Buttons
+        // Export Buttons - ANALYSIS
         document.getElementById('exportExcelAnalysis').addEventListener('click', () => {
             exportToExcel(state.analyzedData, 'analisis_komentar_mu.xlsx', true);
         });
@@ -871,12 +985,21 @@
             exportToPDF(state.analyzedData, 'analisis_komentar_mu.pdf', true);
         });
 
+        document.getElementById('exportWordAnalysis').addEventListener('click', () => {
+            exportToWord(state.analyzedData, 'analisis_komentar_mu.docx', true);
+        });
+
+        // Export Buttons - FULL DATA
         document.getElementById('exportExcelFull').addEventListener('click', () => {
             exportToExcel(state.filteredFullData, 'data_lengkap_komentar_mu.xlsx', false);
         });
 
         document.getElementById('exportPdfFull').addEventListener('click', () => {
             exportToPDF(state.filteredFullData, 'data_lengkap_komentar_mu.pdf', false);
+        });
+
+        document.getElementById('exportWordFull').addEventListener('click', () => {
+            exportToWord(state.filteredFullData, 'data_lengkap_komentar_mu.docx', false);
         });
 
         // Modal Close
