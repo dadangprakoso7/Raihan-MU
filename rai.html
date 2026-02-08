@@ -1,0 +1,898 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analisis Komentar Instagram - Manchester United</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <!-- Library untuk export -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/docxtemplater/3.42.3/docxtemplater.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pizzip/3.1.4/pizzip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+    <style>
+        .gradient-bg {
+            background: linear-gradient(135deg, #dc2626 0%, #7f1d1d 100%);
+        }
+        .card-hover {
+            transition: all 0.3s ease;
+        }
+        .card-hover:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .fade-in {
+            animation: fadeIn 0.6s ease-out;
+        }
+        .analysis-tag {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            margin-right: 4px;
+            margin-bottom: 4px;
+        }
+        .sentiment-Splus { background-color: #d1fae5; color: #065f46; }
+        .sentiment-Sminus { background-color: #fee2e2; color: #991b1b; }
+        .sentiment-S0 { background-color: #e5e7eb; color: #374151; }
+        .sentiment-SL { background-color: #dbeafe; color: #1e40af; }
+        .sentiment-SS { background-color: #f3e8ff; color: #7c3aed; }
+        .table-container {
+            overflow-x: auto;
+            max-height: 600px;
+        }
+        .sticky-header {
+            position: sticky;
+            top: 0;
+            background: white;
+            z-index: 10;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.4);
+        }
+        .modal-content {
+            background-color: #fefefe;
+            margin: 5% auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 90%;
+            max-width: 1200px;
+            border-radius: 10px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .close:hover,
+        .close:focus {
+            color: #000;
+        }
+        .reply-item {
+            margin-left: 30px;
+            padding-left: 15px;
+            border-left: 3px solid #ddd;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <!-- Header -->
+    <header class="gradient-bg text-white shadow-lg">
+        <div class="container mx-auto px-4 py-8">
+            <h1 class="text-4xl font-bold mb-2">Analisis Komentar Instagram MU - Skema Koding 3 Level</h1>
+            <p class="text-red-100 text-lg">Analisis Kualitatif Berdasarkan Tabel Skema Koding Penelitian</p>
+            <p class="text-red-200 text-sm mt-2">Level Individual • Interpersonal • Kelompok</p>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="container mx-auto px-4 py-8">
+        
+        <!-- Post Selection Section -->
+        <section class="mb-8 fade-in">
+            <div class="bg-white rounded-lg shadow-lg p-8">
+                <h2 class="text-3xl font-bold text-gray-800 mb-6">Pilih Postingan untuk Analisis</h2>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Pilih Postingan</label>
+                        <select id="postSelector" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent">
+                            <option value="all">All Posts (Semua Postingan)</option>
+                            <option value="1">Post 1 (data1.json)</option>
+                            <option value="2">Post 2 (data2.json)</option>
+                            <option value="3">Post 3 (data3.json)</option>
+                            <option value="4">Post 4 (data4.json)</option>
+                            <option value="5">Post 5 (data5.json)</option>
+                        </select>
+                    </div>
+                    
+                    <div class="flex items-end">
+                        <button id="loadDataBtn" class="w-full px-8 py-3 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 transition-colors">
+                            <svg class="w-5 h-5 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path>
+                            </svg>
+                            Muat Data
+                        </button>
+                    </div>
+                </div>
+
+                <div id="loadingIndicator" class="hidden text-center py-8">
+                    <div class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-red-600"></div>
+                    <p class="mt-4 text-gray-600">Memuat data...</p>
+                </div>
+
+                <div id="dataStatus" class="mt-4 text-sm text-gray-600"></div>
+            </div>
+        </section>
+
+        <!-- Navigation Tabs -->
+        <section class="mb-8 fade-in" id="navigationSection" style="display: none;">
+            <div class="bg-white rounded-lg shadow-lg p-4">
+                <div class="flex flex-wrap gap-4">
+                    <button id="tabAnalysis" class="tab-btn px-6 py-3 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 transition-colors">
+                        Analisis Data
+                    </button>
+                    <button id="tabFullData" class="tab-btn px-6 py-3 bg-gray-200 text-gray-700 font-semibold rounded-lg hover:bg-gray-300 transition-colors">
+                        Data Lengkap (Komentar + Reply)
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Analysis Results Section -->
+        <section id="analysisSection" style="display: none;">
+            <!-- Statistics Cards -->
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8 fade-in">
+                <div class="bg-white rounded-lg shadow-lg p-6 card-hover">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-gray-600 text-sm font-medium">Total Komentar</p>
+                            <p id="totalComments" class="text-3xl font-bold text-gray-800 mt-2">0</p>
+                        </div>
+                        <div class="bg-red-100 p-4 rounded-full">
+                            <svg class="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-lg shadow-lg p-6 card-hover">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-gray-600 text-sm font-medium">Level 1 Individual</p>
+                            <p id="level1Count" class="text-3xl font-bold text-gray-800 mt-2">0</p>
+                        </div>
+                        <div class="bg-green-100 p-4 rounded-full">
+                            <svg class="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-lg shadow-lg p-6 card-hover">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-gray-600 text-sm font-medium">Level 2 Interpersonal</p>
+                            <p id="level2Count" class="text-3xl font-bold text-gray-800 mt-2">0</p>
+                        </div>
+                        <div class="bg-blue-100 p-4 rounded-full">
+                            <svg class="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-lg shadow-lg p-6 card-hover">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-gray-600 text-sm font-medium">Level 3 Kelompok</p>
+                            <p id="level3Count" class="text-3xl font-bold text-gray-800 mt-2">0</p>
+                        </div>
+                        <div class="bg-purple-100 p-4 rounded-full">
+                            <svg class="w-8 h-8 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path>
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Analysis Table -->
+            <div class="bg-white rounded-lg shadow-lg p-8 mb-8 fade-in">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-2xl font-bold text-gray-800">Hasil Analisis Komentar</h2>
+                    <div class="flex gap-2">
+                        <button id="exportExcelAnalysis" class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm">
+                            Export Excel
+                        </button>
+                        <button id="exportPdfAnalysis" class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm">
+                            Export PDF
+                        </button>
+                        <button id="exportWordAnalysis" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm">
+                            Export Word
+                        </button>
+                    </div>
+                </div>
+
+                <div class="table-container">
+                    <table class="w-full border-collapse" id="analysisTable">
+                        <thead class="sticky-header">
+                            <tr class="bg-gray-100 border-b-2 border-gray-300">
+                                <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">No</th>
+                                <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">Username</th>
+                                <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">Komentar</th>
+                                <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">Level 1 Individual</th>
+                                <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">Level 2 Interpersonal</th>
+                                <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">Level 3 Kelompok</th>
+                                <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">Analisa Detail</th>
+                            </tr>
+                        </thead>
+                        <tbody id="analysisTableBody">
+                            <!-- Data will be inserted here -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="mt-4 flex justify-between items-center">
+                    <div class="text-sm text-gray-600" id="analysisTableInfo">
+                        Menampilkan 0 dari 0 data
+                    </div>
+                    <div class="flex gap-2">
+                        <button id="prevPageAnalysis" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors disabled:opacity-50" disabled>
+                            Previous
+                        </button>
+                        <button id="nextPageAnalysis" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors disabled:opacity-50" disabled>
+                            Next
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Full Data Section -->
+        <section id="fullDataSection" style="display: none;">
+            <div class="bg-white rounded-lg shadow-lg p-8 fade-in">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-2xl font-bold text-gray-800">Data Lengkap - Komentar dan Reply</h2>
+                    <div class="flex gap-2">
+                        <button id="exportExcelFull" class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm">
+                            Export Excel
+                        </button>
+                        <button id="exportPdfFull" class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm">
+                            Export PDF
+                        </button>
+                        <button id="exportWordFull" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm">
+                            Export Word
+                        </button>
+                    </div>
+                </div>
+
+                <div class="mb-4">
+                    <input type="text" id="searchFullData" placeholder="Cari komentar atau username..." 
+                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500">
+                </div>
+
+                <div class="table-container">
+                    <table class="w-full border-collapse" id="fullDataTable">
+                        <thead class="sticky-header">
+                            <tr class="bg-gray-100 border-b-2 border-gray-300">
+                                <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">No</th>
+                                <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">Username</th>
+                                <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">Komentar</th>
+                                <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">Waktu</th>
+                                <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody id="fullDataTableBody">
+                            <!-- Data will be inserted here -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="mt-4 flex justify-between items-center">
+                    <div class="text-sm text-gray-600" id="fullDataTableInfo">
+                        Menampilkan 0 dari 0 data
+                    </div>
+                    <div class="flex gap-2">
+                        <button id="prevPageFull" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors disabled:opacity-50" disabled>
+                            Previous
+                        </button>
+                        <button id="nextPageFull" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors disabled:opacity-50" disabled>
+                            Next
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Modal for Full Comment Details -->
+    <div id="commentModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2 class="text-2xl font-bold mb-4">Detail Komentar</h2>
+            <div id="modalContent">
+                <!-- Content will be inserted here -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global State
+        const state = {
+            allData: [],
+            analyzedData: [],
+            currentView: 'analysis',
+            currentPageAnalysis: 1,
+            currentPageFull: 1,
+            itemsPerPage: 50,
+            filteredFullData: []
+        };
+
+        // Sentiment Analysis Function
+        function analyzeSentiment(text) {
+            const lowerText = text.toLowerCase();
+            
+            // Sentimen Positif (S+)
+            const positiveKeywords = ['good', 'great', 'excellent', 'amazing', 'brilliant', 'fantastic', 'wonderful', 
+                                     'love', 'best', 'king', 'fire', '🔥', '👏', '❤️', 'happy', 'proud'];
+            
+            // Sentimen Negatif (S-)
+            const negativeKeywords = ['waste', 'bad', 'terrible', 'awful', 'poor', 'disaster', 'disgrace', 
+                                     'shit', 'trash', '🗑️', 'failure', 'worst', 'rubbish', 'useless'];
+            
+            // Sentimen Sarkasme/Sindiran (SS)
+            const sarcasmKeywords = ['yeah right', 'sure', 'of course', 'obviously', 'lol', '😂', 'haha'];
+            
+            // Sentimen Harapan (SL)
+            const hopeKeywords = ['hope', 'wish', 'please', 'pray', 'need', 'should', 'must', 'want'];
+            
+            let positiveScore = 0;
+            let negativeScore = 0;
+            let sarcasmScore = 0;
+            let hopeScore = 0;
+            
+            positiveKeywords.forEach(keyword => {
+                if (lowerText.includes(keyword)) positiveScore++;
+            });
+            
+            negativeKeywords.forEach(keyword => {
+                if (lowerText.includes(keyword)) negativeScore++;
+            });
+            
+            sarcasmKeywords.forEach(keyword => {
+                if (lowerText.includes(keyword)) sarcasmScore++;
+            });
+            
+            hopeKeywords.forEach(keyword => {
+                if (lowerText.includes(keyword)) hopeScore++;
+            });
+            
+            // Determine sentiment
+            if (sarcasmScore > 0) {
+                return { code: 'SS', category: 'Sarkasme/Sindiran', detail: 'Menggunakan kata-kata sarkastik atau sindiran' };
+            } else if (hopeScore > 0 && negativeScore === 0) {
+                return { code: 'SL', category: 'Harapan', detail: 'Mengekspresikan harapan atau keinginan' };
+            } else if (positiveScore > negativeScore) {
+                return { code: 'S+', category: 'Positif', detail: 'Menunjukkan sentimen positif atau dukungan' };
+            } else if (negativeScore > positiveScore) {
+                return { code: 'S-', category: 'Negatif', detail: 'Menunjukkan sentimen negatif atau kritik' };
+            } else {
+                return { code: 'S0', category: 'Netral', detail: 'Tidak menunjukkan sentimen yang jelas' };
+            }
+        }
+
+        // Interaction Expression Analysis
+        function analyzeInteraction(text) {
+            const lowerText = text.toLowerCase();
+            
+            // IE1: Dukungan emosional
+            if (lowerText.match(/(great|good|well done|proud|support)/)) {
+                return { code: 'IE1', category: 'Dukungan Emosional', detail: 'Memberikan dukungan atau dorongan kepada tim/pemain' };
+            }
+            
+            // IE2: Kritik tajam
+            if (lowerText.match(/(out|fire|waste|terrible|disaster|worst)/)) {
+                return { code: 'IE2', category: 'Kritik Tajam', detail: 'Mengkritik tajam performa atau keputusan' };
+            }
+            
+            // IE3: Berbagi pendapat
+            if (lowerText.match(/(think|believe|opinion|feel|should)/)) {
+                return { code: 'IE3', category: 'Berbagi Pendapat', detail: 'Menyampaikan pendapat atau pandangan pribadi' };
+            }
+            
+            // IE4: Interaksi dengan pengguna lain
+            if (lowerText.match(/@\w+/)) {
+                return { code: 'IE4', category: 'Interaksi Langsung', detail: 'Berinteraksi langsung dengan pengguna lain' };
+            }
+            
+            // IE5: Permintaan atau saran
+            if (lowerText.match(/(please|need|want|buy|sign|get)/)) {
+                return { code: 'IE5', category: 'Permintaan/Saran', detail: 'Meminta atau menyarankan sesuatu' };
+            }
+            
+            return { code: '', category: 'Tidak Teridentifikasi', detail: 'Tidak termasuk kategori interaksi tertentu' };
+        }
+
+        // Group Ritual Analysis
+        function analyzeRitual(text) {
+            const lowerText = text.toLowerCase();
+            const rituals = [];
+            
+            // KR1: Penggunaan hashtag/slogan
+            if (lowerText.match(/#\w+|ggmu|united/)) {
+                rituals.push({ code: 'KR1', category: 'Hashtag/Slogan', detail: 'Menggunakan hashtag atau slogan tim' });
+            }
+            
+            // KR2: Ritual kemenangan/kekalahan
+            if (lowerText.match(/(win|lose|victory|defeat|match)/)) {
+                rituals.push({ code: 'KR2', category: 'Ritual Pertandingan', detail: 'Merespons hasil pertandingan' });
+            }
+            
+            // KR3: Perayaan bersama
+            if (lowerText.match(/🔥|👏|❤️|😂/) || lowerText.includes('haha') || lowerText.includes('lol')) {
+                rituals.push({ code: 'KR3', category: 'Perayaan Emosional', detail: 'Menggunakan emoji atau ekspresi perayaan' });
+            }
+            
+            // KR4: Solidaritas kelompok
+            if (lowerText.match(/(we|us|our|together|fans)/)) {
+                rituals.push({ code: 'KR4', category: 'Solidaritas', detail: 'Menunjukkan solidaritas dengan kelompok fans' });
+            }
+            
+            // KR5: Ritual kritik kolektif
+            if (lowerText.match(/(amorim out|manager out|coach out|sack)/)) {
+                rituals.push({ code: 'KR5', category: 'Kritik Kolektif', detail: 'Berpartisipasi dalam kritik kolektif' });
+            }
+            
+            return rituals.length > 0 ? rituals : [{ code: '', category: 'Tidak Ada', detail: 'Tidak menunjukkan ritual kelompok' }];
+        }
+
+        // Load Data from JSON
+        async function loadData(postNumber) {
+            state.allData = [];
+            const files = postNumber === 'all' 
+                ? ['data1.json', 'data2.json', 'data3.json', 'data4.json', 'data5.json']
+                : [`data${postNumber}.json`];
+
+            try {
+                for (const file of files) {
+                    try {
+                        const response = await fetch(file);
+                        if (!response.ok) {
+                            console.warn(`File ${file} tidak ditemukan, melanjutkan...`);
+                            continue;
+                        }
+                        const data = await response.json();
+                        state.allData = state.allData.concat(data);
+                    } catch (error) {
+                        console.warn(`Error loading ${file}:`, error);
+                    }
+                }
+
+                if (state.allData.length === 0) {
+                    throw new Error('Tidak ada data yang berhasil dimuat');
+                }
+
+                // Analyze all data
+                state.analyzedData = state.allData.map((comment, index) => {
+                    const sentiment = analyzeSentiment(comment.text);
+                    const interaction = analyzeInteraction(comment.text);
+                    const rituals = analyzeRitual(comment.text);
+
+                    return {
+                        ...comment,
+                        no: index + 1,
+                        sentiment,
+                        interaction,
+                        rituals
+                    };
+                });
+
+                state.filteredFullData = [...state.allData];
+                
+                return true;
+            } catch (error) {
+                console.error('Error loading data:', error);
+                alert('Gagal memuat data. Pastikan file JSON berada di folder yang sama dengan HTML ini.');
+                return false;
+            }
+        }
+
+        // Render Analysis Table
+        function renderAnalysisTable() {
+            const tbody = document.getElementById('analysisTableBody');
+            const start = (state.currentPageAnalysis - 1) * state.itemsPerPage;
+            const end = start + state.itemsPerPage;
+            const pageData = state.analyzedData.slice(start, end);
+
+            tbody.innerHTML = '';
+
+            pageData.forEach((item, index) => {
+                const row = document.createElement('tr');
+                row.className = 'border-b border-gray-200 hover:bg-gray-50';
+                
+                const ritualCodes = item.rituals.map(r => r.code).filter(c => c).join(', ') || '-';
+                const ritualCategories = item.rituals.map(r => r.category).join(', ');
+                
+                const analysisDetail = `
+                    <strong>Sentimen:</strong> ${item.sentiment.detail}<br>
+                    <strong>Interaksi:</strong> ${item.interaction.detail}<br>
+                    <strong>Ritual:</strong> ${item.rituals.map(r => r.detail).join('; ')}
+                `;
+
+                row.innerHTML = `
+                    <td class="px-4 py-3 text-sm">${start + index + 1}</td>
+                    <td class="px-4 py-3 text-sm font-medium">${item.username}</td>
+                    <td class="px-4 py-3 text-sm">${item.text}</td>
+                    <td class="px-4 py-3 text-sm">
+                        <span class="analysis-tag sentiment-${item.sentiment.code.replace('+', 'plus').replace('-', 'minus')}">${item.sentiment.code}</span>
+                        <div class="text-xs text-gray-600 mt-1">${item.sentiment.category}</div>
+                    </td>
+                    <td class="px-4 py-3 text-sm">
+                        ${item.interaction.code ? `<span class="analysis-tag interaction-${item.interaction.code}">${item.interaction.code}</span>` : '-'}
+                        <div class="text-xs text-gray-600 mt-1">${item.interaction.category}</div>
+                    </td>
+                    <td class="px-4 py-3 text-sm">
+                        ${ritualCodes}
+                        <div class="text-xs text-gray-600 mt-1">${ritualCategories}</div>
+                    </td>
+                    <td class="px-4 py-3 text-sm text-gray-600">${analysisDetail}</td>
+                `;
+                
+                tbody.appendChild(row);
+            });
+
+            updateAnalysisPagination();
+            updateStatistics();
+        }
+
+        // Render Full Data Table
+        function renderFullDataTable() {
+            const tbody = document.getElementById('fullDataTableBody');
+            const start = (state.currentPageFull - 1) * state.itemsPerPage;
+            const end = start + state.itemsPerPage;
+            const pageData = state.filteredFullData.slice(start, end);
+
+            tbody.innerHTML = '';
+
+            pageData.forEach((item, index) => {
+                const row = document.createElement('tr');
+                row.className = 'border-b border-gray-200 hover:bg-gray-50';
+                
+                const timestamp = new Date(parseInt(item.created_at) * 1000).toLocaleString('id-ID');
+
+                row.innerHTML = `
+                    <td class="px-4 py-3 text-sm">${start + index + 1}</td>
+                    <td class="px-4 py-3 text-sm font-medium">${item.username}</td>
+                    <td class="px-4 py-3 text-sm">${item.text}</td>
+                    <td class="px-4 py-3 text-sm text-gray-600">${timestamp}</td>
+                    <td class="px-4 py-3 text-sm">
+                        <button onclick="showCommentDetail('${item.comment_id}')" 
+                                class="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 text-xs">
+                            Lihat Detail
+                        </button>
+                    </td>
+                `;
+                
+                tbody.appendChild(row);
+            });
+
+            updateFullDataPagination();
+        }
+
+        // Show Comment Detail in Modal
+        function showCommentDetail(commentId) {
+            const comment = state.allData.find(c => c.comment_id === commentId);
+            if (!comment) return;
+
+            const modal = document.getElementById('commentModal');
+            const modalContent = document.getElementById('modalContent');
+
+            const timestamp = new Date(parseInt(comment.created_at) * 1000).toLocaleString('id-ID');
+
+            let html = `
+                <div class="bg-gray-50 p-4 rounded-lg mb-4">
+                    <div class="flex items-start gap-4">
+                        <img src="${comment.profile_pic_url}" alt="${comment.username}" 
+                             class="w-12 h-12 rounded-full" onerror="this.src='https://via.placeholder.com/48'">
+                        <div class="flex-1">
+                            <p class="font-bold text-gray-800">${comment.username}</p>
+                            <p class="text-sm text-gray-600">${timestamp}</p>
+                            <p class="mt-2 text-gray-800">${comment.text}</p>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // Note: Reply data structure depends on your JSON
+            // If replies exist in your data, you can add them here
+            html += `<p class="text-sm text-gray-600 italic">Reply data akan ditampilkan jika tersedia di JSON</p>`;
+
+            modalContent.innerHTML = html;
+            modal.style.display = 'block';
+        }
+
+        // Update Statistics
+        function updateStatistics() {
+            document.getElementById('totalComments').textContent = state.analyzedData.length;
+            
+            const level1Count = state.analyzedData.filter(d => d.sentiment.code && d.sentiment.code !== 'S0').length;
+            const level2Count = state.analyzedData.filter(d => d.interaction.code).length;
+            const level3Count = state.analyzedData.filter(d => d.rituals.some(r => r.code)).length;
+            
+            document.getElementById('level1Count').textContent = level1Count;
+            document.getElementById('level2Count').textContent = level2Count;
+            document.getElementById('level3Count').textContent = level3Count;
+        }
+
+        // Update Pagination
+        function updateAnalysisPagination() {
+            const total = state.analyzedData.length;
+            const start = (state.currentPageAnalysis - 1) * state.itemsPerPage + 1;
+            const end = Math.min(state.currentPageAnalysis * state.itemsPerPage, total);
+            
+            document.getElementById('analysisTableInfo').textContent = 
+                `Menampilkan ${start}-${end} dari ${total} data`;
+            
+            document.getElementById('prevPageAnalysis').disabled = state.currentPageAnalysis === 1;
+            document.getElementById('nextPageAnalysis').disabled = end >= total;
+        }
+
+        function updateFullDataPagination() {
+            const total = state.filteredFullData.length;
+            const start = (state.currentPageFull - 1) * state.itemsPerPage + 1;
+            const end = Math.min(state.currentPageFull * state.itemsPerPage, total);
+            
+            document.getElementById('fullDataTableInfo').textContent = 
+                `Menampilkan ${start}-${end} dari ${total} data`;
+            
+            document.getElementById('prevPageFull').disabled = state.currentPageFull === 1;
+            document.getElementById('nextPageFull').disabled = end >= total;
+        }
+
+        // Export Functions
+        function exportToExcel(data, filename, includeAnalysis = false) {
+            const ws_data = [];
+            
+            if (includeAnalysis) {
+                // Header
+                ws_data.push(['No', 'Username', 'Komentar', 'Level 1 Individual', 'Level 2 Interpersonal', 'Level 3 Kelompok', 'Analisa Detail']);
+                
+                // Data
+                data.forEach((item, index) => {
+                    const ritualCodes = item.rituals.map(r => r.code).filter(c => c).join(', ') || '-';
+                    const analysisDetail = `Sentimen: ${item.sentiment.detail}\nInteraksi: ${item.interaction.detail}\nRitual: ${item.rituals.map(r => r.detail).join('; ')}`;
+                    
+                    ws_data.push([
+                        index + 1,
+                        item.username,
+                        item.text,
+                        `${item.sentiment.code} - ${item.sentiment.category}`,
+                        item.interaction.code ? `${item.interaction.code} - ${item.interaction.category}` : '-',
+                        ritualCodes,
+                        analysisDetail
+                    ]);
+                });
+            } else {
+                // Header
+                ws_data.push(['No', 'Username', 'Komentar', 'Waktu']);
+                
+                // Data
+                data.forEach((item, index) => {
+                    const timestamp = new Date(parseInt(item.created_at) * 1000).toLocaleString('id-ID');
+                    ws_data.push([
+                        index + 1,
+                        item.username,
+                        item.text,
+                        timestamp
+                    ]);
+                });
+            }
+
+            const wb = XLSX.utils.book_new();
+            const ws = XLSX.utils.aoa_to_sheet(ws_data);
+            
+            // Set column widths
+            ws['!cols'] = [
+                { wch: 5 },
+                { wch: 20 },
+                { wch: 50 },
+                { wch: 20 },
+                { wch: 20 },
+                { wch: 20 },
+                { wch: 40 }
+            ];
+            
+            XLSX.utils.book_append_sheet(wb, ws, 'Data');
+            XLSX.writeFile(wb, filename);
+        }
+
+        function exportToPDF(data, filename, includeAnalysis = false) {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF('l', 'mm', 'a4');
+            
+            doc.setFontSize(16);
+            doc.text('Analisis Komentar Instagram - Manchester United', 14, 15);
+            
+            const headers = includeAnalysis 
+                ? [['No', 'Username', 'Komentar', 'Level 1', 'Level 2', 'Level 3', 'Analisa Detail']]
+                : [['No', 'Username', 'Komentar', 'Waktu']];
+            
+            const rows = data.slice(0, 500).map((item, index) => {
+                if (includeAnalysis) {
+                    const ritualCodes = item.rituals.map(r => r.code).filter(c => c).join(', ') || '-';
+                    const analysisDetail = `${item.sentiment.detail}\n${item.interaction.detail}`;
+                    
+                    return [
+                        index + 1,
+                        item.username,
+                        item.text.substring(0, 50) + '...',
+                        item.sentiment.code,
+                        item.interaction.code || '-',
+                        ritualCodes,
+                        analysisDetail.substring(0, 50) + '...'
+                    ];
+                } else {
+                    const timestamp = new Date(parseInt(item.created_at) * 1000).toLocaleString('id-ID');
+                    return [
+                        index + 1,
+                        item.username,
+                        item.text.substring(0, 60) + '...',
+                        timestamp
+                    ];
+                }
+            });
+            
+            doc.autoTable({
+                head: headers,
+                body: rows,
+                startY: 25,
+                styles: { fontSize: 8, cellPadding: 2 },
+                headStyles: { fillColor: [220, 38, 38] }
+            });
+            
+            doc.save(filename);
+        }
+
+        // Event Listeners
+        document.getElementById('loadDataBtn').addEventListener('click', async () => {
+            const postSelector = document.getElementById('postSelector');
+            const selectedPost = postSelector.value;
+            
+            document.getElementById('loadingIndicator').classList.remove('hidden');
+            document.getElementById('dataStatus').textContent = '';
+            
+            const success = await loadData(selectedPost);
+            
+            document.getElementById('loadingIndicator').classList.add('hidden');
+            
+            if (success) {
+                document.getElementById('dataStatus').textContent = 
+                    `✓ Berhasil memuat ${state.allData.length} data komentar`;
+                document.getElementById('navigationSection').style.display = 'block';
+                switchTab('analysis');
+            }
+        });
+
+        // Tab Navigation
+        document.getElementById('tabAnalysis').addEventListener('click', () => switchTab('analysis'));
+        document.getElementById('tabFullData').addEventListener('click', () => switchTab('fullData'));
+
+        function switchTab(tab) {
+            state.currentView = tab;
+            
+            if (tab === 'analysis') {
+                document.getElementById('analysisSection').style.display = 'block';
+                document.getElementById('fullDataSection').style.display = 'none';
+                document.getElementById('tabAnalysis').className = 'tab-btn px-6 py-3 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 transition-colors';
+                document.getElementById('tabFullData').className = 'tab-btn px-6 py-3 bg-gray-200 text-gray-700 font-semibold rounded-lg hover:bg-gray-300 transition-colors';
+                renderAnalysisTable();
+            } else {
+                document.getElementById('analysisSection').style.display = 'none';
+                document.getElementById('fullDataSection').style.display = 'block';
+                document.getElementById('tabAnalysis').className = 'tab-btn px-6 py-3 bg-gray-200 text-gray-700 font-semibold rounded-lg hover:bg-gray-300 transition-colors';
+                document.getElementById('tabFullData').className = 'tab-btn px-6 py-3 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 transition-colors';
+                renderFullDataTable();
+            }
+        }
+
+        // Pagination
+        document.getElementById('prevPageAnalysis').addEventListener('click', () => {
+            if (state.currentPageAnalysis > 1) {
+                state.currentPageAnalysis--;
+                renderAnalysisTable();
+            }
+        });
+
+        document.getElementById('nextPageAnalysis').addEventListener('click', () => {
+            const totalPages = Math.ceil(state.analyzedData.length / state.itemsPerPage);
+            if (state.currentPageAnalysis < totalPages) {
+                state.currentPageAnalysis++;
+                renderAnalysisTable();
+            }
+        });
+
+        document.getElementById('prevPageFull').addEventListener('click', () => {
+            if (state.currentPageFull > 1) {
+                state.currentPageFull--;
+                renderFullDataTable();
+            }
+        });
+
+        document.getElementById('nextPageFull').addEventListener('click', () => {
+            const totalPages = Math.ceil(state.filteredFullData.length / state.itemsPerPage);
+            if (state.currentPageFull < totalPages) {
+                state.currentPageFull++;
+                renderFullDataTable();
+            }
+        });
+
+        // Search
+        document.getElementById('searchFullData').addEventListener('input', (e) => {
+            const searchTerm = e.target.value.toLowerCase();
+            state.filteredFullData = state.allData.filter(item => 
+                item.text.toLowerCase().includes(searchTerm) ||
+                item.username.toLowerCase().includes(searchTerm)
+            );
+            state.currentPageFull = 1;
+            renderFullDataTable();
+        });
+
+        // Export Buttons
+        document.getElementById('exportExcelAnalysis').addEventListener('click', () => {
+            exportToExcel(state.analyzedData, 'analisis_komentar_mu.xlsx', true);
+        });
+
+        document.getElementById('exportPdfAnalysis').addEventListener('click', () => {
+            exportToPDF(state.analyzedData, 'analisis_komentar_mu.pdf', true);
+        });
+
+        document.getElementById('exportExcelFull').addEventListener('click', () => {
+            exportToExcel(state.filteredFullData, 'data_lengkap_komentar_mu.xlsx', false);
+        });
+
+        document.getElementById('exportPdfFull').addEventListener('click', () => {
+            exportToPDF(state.filteredFullData, 'data_lengkap_komentar_mu.pdf', false);
+        });
+
+        // Modal Close
+        document.querySelector('.close').addEventListener('click', () => {
+            document.getElementById('commentModal').style.display = 'none';
+        });
+
+        window.addEventListener('click', (e) => {
+            const modal = document.getElementById('commentModal');
+            if (e.target === modal) {
+                modal.style.display = 'none';
+            }
+        });
+
+        // Make function global
+        window.showCommentDetail = showCommentDetail;
+    </script>
+</body>
+</html>
